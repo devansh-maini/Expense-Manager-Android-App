@@ -21,19 +21,22 @@ data class Content(
 data class Part(
     val text: String? = null,
     val functionCall: FunctionCall? = null,
-    val functionResponse: FunctionResponse? = null
+    val functionResponse: FunctionResponse? = null,
+    val thoughtSignature: String? = null
 )
 
 @Serializable
 data class FunctionCall(
     val name: String,
-    val args: JsonObject? = null
+    val args: JsonObject? = null,
+    val id: String? = null
 )
 
 @Serializable
 data class FunctionResponse(
     val name: String,
-    val response: JsonObject
+    val response: JsonObject,
+    val id: String? = null
 )
 
 @Serializable

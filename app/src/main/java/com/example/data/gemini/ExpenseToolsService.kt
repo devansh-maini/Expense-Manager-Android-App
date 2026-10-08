@@ -27,7 +27,8 @@ sealed class PendingExpenseAction {
         val categoryName: String,
         val amountFormatted: String,
         val dateFormatted: String,
-        val description: String
+        val description: String,
+        val callId: String? = null
     ) : PendingExpenseAction()
 
     data class Update(
@@ -38,7 +39,8 @@ sealed class PendingExpenseAction {
         val newAmountFormatted: String,
         val newCategory: String?,
         val newMerchant: String?,
-        val newDescription: String?
+        val newDescription: String?,
+        val callId: String? = null
     ) : PendingExpenseAction()
 }
 
@@ -336,7 +338,8 @@ class ExpenseToolsService(
         categoryName: String? = null,
         merchant: String? = null,
         description: String? = null,
-        isConfirmed: Boolean = false
+        isConfirmed: Boolean = false,
+        callId: String? = null
     ): Pair<JsonObject, PendingExpenseAction.Update?> {
         val existing = expenseRepository.getExpenseById(id)
         if (existing == null) {
@@ -363,7 +366,8 @@ class ExpenseToolsService(
                 newAmountFormatted = newFormatted,
                 newCategory = categoryName,
                 newMerchant = merchant,
-                newDescription = description
+                newDescription = description,
+                callId = callId
             )
             val json = buildJsonObject {
                 put("status", "CONFIRMATION_REQUIRED")
@@ -406,7 +410,8 @@ class ExpenseToolsService(
 
     suspend fun checkDeleteExpense(
         id: Long,
-        isConfirmed: Boolean = false
+        isConfirmed: Boolean = false,
+        callId: String? = null
     ): Pair<JsonObject, PendingExpenseAction.Delete?> {
         val existing = expenseRepository.getExpenseById(id)
         if (existing == null) {
@@ -430,7 +435,8 @@ class ExpenseToolsService(
                 categoryName = catName,
                 amountFormatted = formattedAmount,
                 dateFormatted = formattedDate,
-                description = existing.description
+                description = existing.description,
+                callId = callId
             )
             val json = buildJsonObject {
                 put("status", "CONFIRMATION_REQUIRED")

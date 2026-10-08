@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
@@ -251,8 +252,22 @@ class GeminiChatRepository(
             conversationHistory.add(candidateContent)
             return@withContext GeminiChatResult.Success(responseText)
 
+        } catch (e: retrofit2.HttpException) {
+            val friendlyMsg = parseErrorMessage(e)
+            return@withContext GeminiChatResult.Error("Gemini API Error (${e.code()}): $friendlyMsg")
         } catch (e: Exception) {
             return@withContext GeminiChatResult.Error(e.message ?: "Failed to communicate with Gemini API.")
+        }
+    }
+
+    private fun parseErrorMessage(e: retrofit2.HttpException): String {
+        return try {
+            val errorBody = e.response()?.errorBody()?.string() ?: return e.message()
+            val element = Json.parseToJsonElement(errorBody).jsonObject
+            val apiMessage = element["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
+            apiMessage ?: errorBody.take(250)
+        } catch (_: Exception) {
+            e.message()
         }
     }
 
@@ -261,22 +276,27 @@ class GeminiChatRepository(
         modelTurnContent: Content,
         apiKey: String
     ): GeminiChatResult {
-        // Append model's tool request turn
+        // Append model's tool request turn (preserves thoughtSignature)
         conversationHistory.add(modelTurnContent)
 
         val args = call.args ?: buildJsonObject {}
         val toolName = call.name
+        val callId = call.id
 
         // Check if function is destructive and requires user confirmation
         when (toolName) {
             "deleteExpense" -> {
                 val id = args["id"]?.jsonPrimitive?.longOrNull ?: 0L
-                val (jsonResult, pendingDelete) = expenseToolsService.checkDeleteExpense(id, isConfirmed = false)
+                val (jsonResult, pendingDelete) = expenseToolsService.checkDeleteExpense(
+                    id = id,
+                    isConfirmed = false,
+                    callId = callId
+                )
                 if (pendingDelete != null) {
                     val prompt = "Please confirm deleting expense #${pendingDelete.expenseId} (${pendingDelete.merchant.ifEmpty { pendingDelete.categoryName }} for ${pendingDelete.amountFormatted})."
                     return GeminiChatResult.RequiresConfirmation(pendingDelete, prompt)
                 }
-                return sendToolResponseAndComplete(toolName, jsonResult, apiKey)
+                return sendToolResponseAndComplete(toolName, callId, jsonResult, apiKey)
             }
             "updateExpense" -> {
                 val id = args["id"]?.jsonPrimitive?.longOrNull ?: 0L
@@ -291,18 +311,19 @@ class GeminiChatRepository(
                     categoryName = cat,
                     merchant = merchant,
                     description = desc,
-                    isConfirmed = false
+                    isConfirmed = false,
+                    callId = callId
                 )
                 if (pendingUpdate != null) {
                     val prompt = "Please confirm modifying expense #${pendingUpdate.expenseId}."
                     return GeminiChatResult.RequiresConfirmation(pendingUpdate, prompt)
                 }
-                return sendToolResponseAndComplete(toolName, jsonResult, apiKey)
+                return sendToolResponseAndComplete(toolName, callId, jsonResult, apiKey)
             }
             else -> {
                 // Execute standard non-destructive tools
                 val jsonResult = executeSafeTool(toolName, args)
-                return sendToolResponseAndComplete(toolName, jsonResult, apiKey)
+                return sendToolResponseAndComplete(toolName, callId, jsonResult, apiKey)
             }
         }
     }
@@ -313,11 +334,15 @@ class GeminiChatRepository(
             is PendingExpenseAction.Delete -> "deleteExpense"
             is PendingExpenseAction.Update -> "updateExpense"
         }
+        val callId = when (action) {
+            is PendingExpenseAction.Delete -> action.callId
+            is PendingExpenseAction.Update -> action.callId
+        }
         val resultJson = when (action) {
             is PendingExpenseAction.Delete -> expenseToolsService.executeConfirmedDelete(action)
             is PendingExpenseAction.Update -> expenseToolsService.executeConfirmedUpdate(action)
         }
-        return@withContext sendToolResponseAndComplete(toolName, resultJson, apiKey)
+        return@withContext sendToolResponseAndComplete(toolName, callId, resultJson, apiKey)
     }
 
     private suspend fun executeSafeTool(name: String, args: JsonObject): JsonObject {
@@ -399,6 +424,7 @@ class GeminiChatRepository(
 
     private suspend fun sendToolResponseAndComplete(
         toolName: String,
+        callId: String?,
         jsonResult: JsonObject,
         apiKey: String
     ): GeminiChatResult {
@@ -409,6 +435,7 @@ class GeminiChatRepository(
                 Part(
                     functionResponse = FunctionResponse(
                         name = toolName,
+                        id = callId,
                         response = buildJsonObject {
                             put("output", jsonResult)
                         }
@@ -418,28 +445,43 @@ class GeminiChatRepository(
         )
         conversationHistory.add(functionResponseContent)
 
-        // Request final model synthesis
-        val finalRequest = GenerateContentRequest(
-            contents = conversationHistory.toList(),
-            systemInstruction = getSystemInstruction(),
-            tools = tools,
-            generationConfig = GenerationConfig(
-                temperature = 0.2f,
-                topP = 0.95f
+        return try {
+            // Request final model synthesis
+            val finalRequest = GenerateContentRequest(
+                contents = conversationHistory.toList(),
+                systemInstruction = getSystemInstruction(),
+                tools = tools,
+                generationConfig = GenerationConfig(
+                    temperature = 0.2f,
+                    topP = 0.95f
+                )
             )
-        )
 
-        val finalResponse = apiService.generateContent(apiKey, finalRequest)
-        val candidate = finalResponse.candidates?.firstOrNull()
-        val text = candidate?.content?.parts?.firstOrNull { !it.text.isNullOrBlank() }?.text
-            ?: "Completed function $toolName."
+            val finalResponse = apiService.generateContent(apiKey, finalRequest)
+            val candidate = finalResponse.candidates?.firstOrNull()
+            val candidateContent = candidate?.content
 
-        candidate?.content?.let { conversationHistory.add(it) }
+            // Model could theoretically call another function or return text
+            val nextCallPart = candidateContent?.parts?.firstOrNull { it.functionCall != null }
+            if (nextCallPart?.functionCall != null) {
+                return handleFunctionCall(nextCallPart.functionCall, candidateContent, apiKey)
+            }
 
-        return GeminiChatResult.ToolExecuted(
-            functionName = toolName,
-            summary = "Called $toolName",
-            finalResponseText = text
-        )
+            val text = candidateContent?.parts?.firstOrNull { !it.text.isNullOrBlank() }?.text
+                ?: "Completed function $toolName."
+
+            candidateContent?.let { conversationHistory.add(it) }
+
+            GeminiChatResult.ToolExecuted(
+                functionName = toolName,
+                summary = "Called $toolName",
+                finalResponseText = text
+            )
+        } catch (e: retrofit2.HttpException) {
+            val friendlyMsg = parseErrorMessage(e)
+            GeminiChatResult.Error("Gemini API Error (${e.code()}): $friendlyMsg")
+        } catch (e: Exception) {
+            GeminiChatResult.Error(e.message ?: "Failed in final tool completion.")
+        }
     }
 }

@@ -43,8 +43,10 @@ class ExampleUnitTest {
                 args = buildJsonObject {
                   put("category", "Food")
                   put("dateRange", "THIS_MONTH")
-                }
-              )
+                },
+                id = "call_123"
+              ),
+              thoughtSignature = "sample_thought_sig"
             )
           )
         )
@@ -53,6 +55,8 @@ class ExampleUnitTest {
     val encoded = json.encodeToString(GenerateContentRequest.serializer(), request)
     assertTrue("Should contain getExpensesByCategory", encoded.contains("getExpensesByCategory"))
     assertTrue("Should contain Food", encoded.contains("Food"))
+    assertTrue("Should contain thoughtSignature", encoded.contains("sample_thought_sig"))
+    assertTrue("Should contain call_123", encoded.contains("call_123"))
   }
 }
 
