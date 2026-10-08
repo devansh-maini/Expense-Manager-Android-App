@@ -43,6 +43,8 @@ import com.example.ui.screens.calendar.CalendarScreen
 import com.example.ui.screens.calendar.CalendarViewModel
 import com.example.ui.screens.categories.CategoriesScreen
 import com.example.ui.screens.categories.CategoriesViewModel
+import com.example.ui.screens.chat.ChatScreen
+import com.example.ui.screens.chat.ChatViewModel
 import com.example.ui.screens.dashboard.DashboardScreen
 import com.example.ui.screens.dashboard.DashboardViewModel
 import com.example.ui.screens.more.MoreScreen
@@ -138,7 +140,20 @@ fun ExpenseApp(
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                             }
+                        },
+                        onNavigateToChat = {
+                            navController.navigate(Screen.Chat.route) {
+                                launchSingleTop = true
+                            }
                         }
+                    )
+                }
+
+                composable(Screen.Chat.route) {
+                    val vm: ChatViewModel = viewModel(factory = factory)
+                    ChatScreen(
+                        viewModel = vm,
+                        onBack = { navController.popBackStack() }
                     )
                 }
 

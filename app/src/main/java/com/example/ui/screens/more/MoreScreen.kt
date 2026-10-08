@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Lock
@@ -74,6 +75,16 @@ fun MoreScreen(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                MoreMenuCard(
+                    title = "AI Expense Assistant",
+                    subtitle = "Ask questions using your real records via Gemini 3.5 Flash",
+                    icon = Icons.Default.AutoAwesome,
+                    iconTint = Color(0xFF00A86B),
+                    onClick = { onNavigate(Screen.Chat.route) }
                 )
             }
 

@@ -2,6 +2,7 @@ package com.example.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
@@ -22,7 +23,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object Bills : Screen("bills", "Bills", Icons.Default.AccountBalanceWallet)
     object More : Screen("more", "More", Icons.Default.MoreHoriz)
 
-    // Sub-screens under "More"
+    // Sub-screens
+    object Chat : Screen("chat", "AI Assistant", Icons.Default.AutoAwesome)
     object Budgets : Screen("budgets", "Budgets", Icons.Default.Savings)
     object Calendar : Screen("calendar", "Calendar", Icons.Default.CalendarMonth)
     object Categories : Screen("categories", "Categories", Icons.Default.Category)

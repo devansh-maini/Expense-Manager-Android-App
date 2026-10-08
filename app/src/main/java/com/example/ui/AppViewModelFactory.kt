@@ -3,6 +3,8 @@ package com.example.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.data.local.AppDatabase
+import com.example.data.gemini.ExpenseToolsService
+import com.example.data.gemini.GeminiChatRepository
 import com.example.data.repository.BackupRepository
 import com.example.data.repository.BillRepository
 import com.example.data.repository.BudgetRepository
@@ -18,6 +20,7 @@ import com.example.ui.screens.bills.BillsViewModel
 import com.example.ui.screens.budgets.BudgetsViewModel
 import com.example.ui.screens.calendar.CalendarViewModel
 import com.example.ui.screens.categories.CategoriesViewModel
+import com.example.ui.screens.chat.ChatViewModel
 import com.example.ui.screens.dashboard.DashboardViewModel
 import com.example.ui.screens.paymentmethods.PaymentMethodsViewModel
 import com.example.ui.screens.security.SecurityViewModel
@@ -36,6 +39,12 @@ class AppViewModelFactory(
     private val billRepository by lazy { BillRepository(database.billDao()) }
     private val settingsRepository by lazy { SettingsRepository(database.appSettingsDao()) }
     private val backupRepository by lazy { BackupRepository(database) }
+    private val expenseToolsService by lazy {
+        ExpenseToolsService(expenseRepository, categoryRepository, paymentMethodRepository)
+    }
+    private val geminiChatRepository by lazy {
+        GeminiChatRepository(expenseToolsService)
+    }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -48,6 +57,9 @@ class AppViewModelFactory(
                     paymentMethodRepository,
                     billRepository
                 ) as T
+            }
+            modelClass.isAssignableFrom(ChatViewModel::class.java) -> {
+                ChatViewModel(geminiChatRepository) as T
             }
             modelClass.isAssignableFrom(TransactionsViewModel::class.java) -> {
                 TransactionsViewModel(
