@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54">
+        <!-- Shield Wallet Base -->
+        <path
+            android:pathData="M34,35 C34,32.8 35.8,31 38,31 L70,31 C72.2,31 74,32.8 74,35 L74,62 C74,72 54,79 54,79 C54,79 34,72 34,62 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="34"
+                    android:startY="31"
+                    android:endX="74"
+                    android:endY="79"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#00E676" />
+                    <item android:offset="1.0" android:color="#00B0FF" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <!-- Inner Card / Slit -->
+        <path
+            android:fillColor="#102A38"
+            android:pathData="M40,38 L68,38 C69.1,38 70,38.9 70,40 L70,45 C70,46.1 69.1,47 68,47 L40,47 C38.9,47 38,46.1 38,45 L38,40 C38,38.9 38.9,38 40,38 Z" />
+        <!-- Rupee / Currency Symbol Center -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M49,52 L59,52 M49,55 L57,55 M49,52 L49,67 M49,55 C53,55 57,55 57,58 C57,61 53,61 49,61 L58,68"
+            android:strokeWidth="2.4"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

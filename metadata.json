@@ -1,0 +1,6 @@
+{
+  "name": "Expense Manager",
+  "description": "Modern, secure personal expense management app with offline-first Room database, budgeting, analytics, and security PIN lock.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
